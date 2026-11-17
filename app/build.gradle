@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'il.co.saya.gascalc'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'il.co.saya.gascalc'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        saya {
+            storeFile file('saya.keystore')
+            storePassword 'android'
+            keyAlias 'saya'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.saya
+        }
+        debug {
+            signingConfig signingConfigs.saya
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
