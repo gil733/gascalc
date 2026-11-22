@@ -50,6 +50,13 @@ label{font-size:14px;color:var(--mut);display:grid;gap:4px}
 .vol{white-space:nowrap;font-weight:700;text-align:left;direction:ltr}
 pre{background:var(--panel);border-radius:10px;padding:14px;white-space:pre-wrap;font:15px/1.6 Heebo,sans-serif;margin:0}
 .note{font-size:13px;color:var(--mut)}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:12px}
+.opt{display:block;border:2px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;color:var(--ink);font-size:15px}
+.opt.on{border-color:var(--red)}.opt{position:relative}.opt input{position:absolute;opacity:0;width:1px;height:1px;min-height:0;top:0;inset-inline-start:0;padding:0;border:0}.opt:focus-within{outline:2px solid var(--blue)}
+.oh{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.oh b{font-size:17px}
+.mk{border-radius:6px;padding:1px 8px;font-size:13px;font-weight:700;color:#fff}.mk-Fike{background:#2e6f8e}.mk-SAFE{background:#3f8f6b}
+.om{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;color:var(--mut)}.om b{color:var(--ink);white-space:nowrap}.om b.bad{color:var(--red)}
+.opt ul{margin:8px 0 0;padding-inline-start:18px;font-size:14px;color:var(--mut)}.opt.multi{cursor:default}
 .roomsbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;padding-bottom:0}
 @media(max-width:700px){.roomsbar{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:820px){.top{grid-template-columns:minmax(0,1fr)}.fig{min-height:300px}}
@@ -98,16 +105,23 @@ pre{background:var(--panel);border-radius:10px;padding:14px;white-space:pre-wrap
     <label>סוג גז<select id="gas"><option value="fm">FM-200 ‏(HFC-227ea)</option><option value="nv">Novec 1230 ‏(FK-5-1-12)</option></select></label>
     <label>ריכוז תכנון %<input type="number" id="conc" step="0.1"></label>
     <label>טמפרטורת תכנון מינימלית °C<input type="number" id="temp" step="1"></label>
+    <label>יצרן מיכל<select id="mk"><option value="all">כל היצרנים</option><option value="Fike">Fike</option><option value="SAFE">SAFE</option></select></label>
     <label>גובה מרבי לנחיר במערכת pre-engineered (מ׳)<input type="number" id="hmax" step="0.1"></label>
   </div>
   <p class="note">החישוב: W = V/S × C/(100−C). ‏S של FM-200 שווה ‎0.1269+0.000513·T, ושל Novec 1230 שווה ‎0.0664+0.000274·T. לא כולל תיקון גובה מעל פני הים. ריכוז התכנון נקבע לפי התקן ולפי היצרן.</p>
 </div>
 
 <div class="band">
+  <h2>מיכלים מתאימים</h2>
+  <div class="opts" id="opts"></div>
+  <p class="note">מוצגים מיכלים שהנפח הנטו נמצא בטווח נפח הכיבוי שלהם לפי טופס ההרצה, וכמות הגז הנדרשת לא עוברת את המילוי המרבי. הנתונים מטפסי ההרצה של טלפייר: Fike Impulse (מדריך Fike ‏06-542 Rev.4) ו-SAFE ‏(TFN-200 Rev.A).</p>
+</div>
+
+<div class="band">
   <h2>סיכום להעתקה</h2>
   <pre id="sum"></pre>
   <div class="btns"><button class="pri" id="share">שיתוף (וואטסאפ / מייל)</button><button id="copy">העתק סיכום</button><span id="copied" class="note" style="align-self:center"></span></div>
-  <p class="note">התאמת המיכלים מבוססת על טפסי SAFE ‏(L-15TFN, ‏16–16.8 ק״ג ל-29–30 מ״ק) ועל מחירון טלפייר 2026. לפני תכנון והתקנה יש לבדוק את הנתונים מול הוראות היצרן.</p>
+  <p class="note">החישוב הוא כלי עזר. לפני תכנון והתקנה יש לבדוק את הנתונים מול הוראות היצרן.</p>
 </div>
 
 <script src="three.min.js"></script>
@@ -154,40 +168,87 @@ function calc(){
  const top=Math.max(0,...st.blocks.filter(b=>b.t==='v').map(b=>(+b.z||0)+(+b.h||0)));
  return {g,T,C,gross,sub,net,S,W,top};
 }
-const FM_OPTS=[{kg:1.5,n:'K1.5L-2TFN',d:'מיכל 2 ל׳, 1.5 ק״ג'},{kg:3,n:'K3.0L-4TFN',d:'מיכל 4 ל׳, 3 ק״ג'},{kg:5,n:'K5.0L-8TFN',d:'מיכל 8 ל׳, 5 ק״ג'},{kg:6.5,n:'K5.0L-8TFN',d:'מיכל 8 ל׳, 6.5 ק״ג'},{kg:11,min:6,n:'L-10TFN',d:'מיכל 10 ל׳, 6–11 ק״ג'},{kg:16.8,min:11,n:'L-15TFN',d:'מיכל 15 ל׳, 11–16.8 ק״ג'}];
-function suggest(r){
- if(st.gas!=='fm')return {txt:'לבדוק במחירון טלפייר מיכל SAFE Novec מתאים',fill:null};
- if(r.W<=0)return {txt:'—',fill:null};
- const o=FM_OPTS.find(o=>o.kg>=r.W);
- if(!o){const n=Math.ceil(r.W/16.8);return {txt:`מעל 16.8 ק״ג: ${n} מיכלי L-15TFN או מערכת engineered`,fill:null,multi:n}}
- const fill=o.min?Math.max(o.min,Math.ceil(r.W*10)/10):o.kg;
- return {txt:`${o.n} · ${o.d}`,fill};
-}
+const CONT=[
+ {id:'fk9-1',mk:'Fike',code:'Impulse',nm:'מיכל 9 ל׳ · נחיר אחד',pn:'מיכל 70-349',fill:[4.5,9.5],vol:[8.2,17.2],noz:1,src:'form',
+  det:['נחיר 360°: יצרן <bdi>84-046-040</bdi>, טלפייר <bdi>TEN-15360</bdi>, קדח 4.0 מ״מ','נחיר 180°: יצרן <bdi>84-053-042</bdi>, טלפייר <bdi>TEN-15180</bdi>, קדח 4.2 מ״מ','מחבר נחיר <bdi>1/2"</bdi> (15 מ״מ)','צנרת <bdi>1/2" Sch-40</bdi> ללא תפר, עד 10.6 מ׳ ועד 8 זוויות. מעל 8 זוויות מורידים 0.5 מ׳ לכל זווית']},
+ {id:'fk9-2',mk:'Fike',code:'Impulse',nm:'מיכל 9 ל׳ · שני נחירים',pn:'מיכל 70-349',fill:[4.5,9.5],vol:[8.2,17.2],noz:2,src:'form',
+  det:['נחיר 360°: יצרן <bdi>84-045-031</bdi>, טלפייר <bdi>TEN-10360</bdi>, קדח 3.1 מ״מ','נחיר 180°: יצרן <bdi>84-052-032</bdi>, טלפייר <bdi>TEN-10180</bdi>, קדח 3.2 מ״מ','מחבר נחיר <bdi>3/8"</bdi> (10 מ״מ)','מקטע A: צנרת <bdi>1/2"</bdi>, עד 8 מ׳ ועד 6 זוויות. מעל 6 מורידים 0.5 מ׳ לכל זווית','מקטע B: צנרת <bdi>3/8"</bdi>, עד 3 מ׳ ועד 4 זוויות. מעל 4 מורידים 0.4 מ׳ לכל זווית','מקטע B מחולק שווה בין הנחירים, עד 10% סטייה']},
+ {id:'sf15-1',mk:'SAFE',code:'L-15TFN',nm:'מיכל 15 ל׳ · נחיר אחד',pn:'מיכל 4A-003054-DS',fill:[11,15],vol:[19.5,27],noz:1,src:'form',
+  det:['קוטר חור נחיר לפי מילוי: עד 12 ק״ג 4 מ״מ, 13 ק״ג 4.5 מ״מ, 14 ק״ג 4.7 מ״מ, 15 ק״ג 5 מ״מ','נחירים <bdi>TSN-340TN21</bdi> עד <bdi>TN24</bdi> (לפי הטופס)','מחבר נחיר <bdi>3/4"</bdi> (20 מ״מ)','צנרת <bdi>3/4" Sch-40</bdi> ללא תפר, עד 10 מ׳ ועד 8 זוויות']},
+ {id:'sf15-2',mk:'SAFE',code:'L-15TFN',nm:'מיכל 15 ל׳ · שני נחירים',pn:'מיכל 4A-003054-DS',fill:[12,15],vol:[21,27],noz:2,src:'form',
+  det:['קוטר חור נחיר לפי מילוי: 12–13 ק״ג 3.2 מ״מ, 14 ק״ג 3.5 מ״מ, 15 ק״ג 3.7 מ״מ','נחירים <bdi>TSN-120TN17</bdi> עד <bdi>TN19</bdi> (לפי הטופס)','מחבר נחיר <bdi>1/2"</bdi> (15 מ״מ)','מקטע A: צנרת <bdi>3/4"</bdi>, עד 10.5 מ׳ ועד 6 זוויות','מקטע B: צנרת <bdi>1/2"</bdi>, עד 1 מ׳ ועד 4 זוויות, מחולק שווה בין הנחירים']},
+ {id:'sf15-hi',mk:'SAFE',code:'L-15TFN',nm:'מיכל 15 ל׳ · נחיר 1 אינץ׳',pn:'מיכל 4A-003054-DS',fill:[16,16.8],vol:[29,30],noz:1,src:'form',
+  det:['נחיר <bdi>TSN-100TN25</bdi>, קוטר חור 5.8 מ״מ','מחבר נחיר <bdi>1"</bdi> (25 מ״מ)','צנרת <bdi>1"</bdi>, עד 10 מ׳ ועד 8 זוויות']},
+ {id:'sfk1.5',mk:'SAFE',code:'K1.5L-2TFN',nm:'מיכל 2 ל׳',fill:[1.5,1.5],src:'price',det:['קיט 1 או 2 נחירים, ממולא 1.5 ק״ג']},
+ {id:'sfk3',mk:'SAFE',code:'K3.0L-4TFN',nm:'מיכל 4 ל׳',fill:[3,3],src:'price',det:['קיט 1, 2 או 4 נחירים, ממולא 3 ק״ג']},
+ {id:'sfk5',mk:'SAFE',code:'K5.0L-8TFN',nm:'מיכל 8 ל׳',fill:[5,5],src:'price',det:['קיט 1, 2 או 4 נחירים, ממולא 5 ק״ג']},
+ {id:'sfk6.5',mk:'SAFE',code:'K5.0L-8TFN',nm:'מיכל 8 ל׳',fill:[6.5,6.5],src:'price',det:['קיט 1, 2 או 4 נחירים, ממולא 6.5 ק״ג']},
+ {id:'sf10',mk:'SAFE',code:'L-10TFN',nm:'מיכל 10 ל׳',fill:[6,11],src:'price',det:['מיכל ריק, תכולה 6–11 ק״ג']}
+];
+const nmH=c=>`${c.nm} <bdi>${c.code}</bdi>`,nmT=c=>`${c.mk} ${c.code} ${c.nm}`,strip=t=>t.replace(/<[^>]+>/g,'');
+const ceil1=x=>Math.ceil(x*10-1e-9)/10;
 function actualC(r,kg){if(!kg||!r.net)return null;const x=kg*r.S/r.net;return 100*x/(1+x)}
+function options(r){
+ if(st.gas!=='fm'||r.W<=0||r.net<=0)return {list:[],multi:[]};
+ const mk=st.mk||'all';
+ const pool=CONT.filter(c=>mk==='all'||c.mk===mk);
+ const list=[];
+ pool.forEach(c=>{
+  if(r.W>c.fill[1]+1e-9)return;
+  if(c.vol&&(r.net<c.vol[0]||r.net>c.vol[1]))return;
+  const fill=Math.min(c.fill[1],Math.max(c.fill[0],ceil1(r.W)));
+  list.push({c,fill,ac:actualC(r,fill)});
+ });
+ list.sort((a,b)=>(a.c.src===b.c.src?0:a.c.src==='form'?-1:1)||(a.fill-b.fill)||(a.c.noz||1)-(b.c.noz||1));
+ const multi=[];
+ if(!list.some(o=>o.c.src==='form')){
+  ['Fike','SAFE'].filter(m=>mk==='all'||mk===m).forEach(m=>{
+   const fc=pool.filter(c=>c.mk===m&&c.vol);
+   for(let n=2;n<=20;n++){const per=r.net/n,kg=r.W/n;
+    const c=fc.filter(c=>per>=c.vol[0]&&per<=c.vol[1]&&kg<=c.fill[1]).sort((a,b)=>(a.noz||1)-(b.noz||1))[0];
+    if(c){multi.push({c,n,per,kg:Math.min(c.fill[1],Math.max(c.fill[0],ceil1(kg)))});break}}
+  });
+ }
+ return {list,multi};
+}
+function pickOf(op){return op.list.find(o=>o.c.id===st.pick)||op.list[0]||null}
+function renderOpts(r,op,pk){
+ const el=$('opts');
+ if(st.gas!=='fm'){el.innerHTML='<p class="note">לגז Novec 1230 אין טפסי הרצה בפרויקט. יש לבדוק מיכל מתאים במחירון טלפייר.</p>';return}
+ if(!op.list.length&&!op.multi.length){el.innerHTML='<p class="note">אין מיכל pre-engineered שמתאים לנפח הזה. יש לשקול מערכת engineered.</p>';return}
+ el.innerHTML=op.list.map(o=>`<label class="opt${pk&&o.c.id===pk.c.id?' on':''}"><input type="radio" name="pick" value="${o.c.id}"${pk&&o.c.id===pk.c.id?' checked':''}>
+  <div class="oh"><span class="mk mk-${o.c.mk}">${o.c.mk}</span><b>${nmH(o.c)}</b>${o.c.src==='price'?'<span class="note">מחירון בלבד</span>':''}</div>
+  <div class="om"><span>מילוי <b>${f(o.fill,1)} ק״ג</b></span><span>ריכוז בפועל <b class="${o.ac>r.g.noael?'bad':''}">${f(o.ac,2)}%</b></span>${o.c.vol?`<span>נפח מדורג <b>${f(o.c.vol[0],1)}–${f(o.c.vol[1],1)} מ״ק</b></span>`:''}${o.c.noz?`<span>נחירים <b>${o.c.noz}</b></span>`:''}</div>
+  <ul>${o.c.det.map(d=>`<li>${d}</li>`).join('')}</ul></label>`).join('')+
+  op.multi.map(m=>`<div class="opt multi"><div class="oh"><span class="mk mk-${m.c.mk}">${m.c.mk}</span><b>${m.n} × ${nmH(m.c)}</b></div><p class="note" style="margin:6px 0 0">חלוקת החדר ל-${m.n} אזורים של כ-${f(m.per,1)} מ״ק, מיכל לכל אזור (כ-${f(m.kg,1)} ק״ג לאזור). חלופה: מערכת engineered.</p></div>`).join('');
+}
 function update(){
- const r=calc(),sg=suggest(r),ac=actualC(r,sg.fill);
+ const r=calc(),op=options(r),pk=pickOf(op),ac=pk?pk.ac:null;
+ const sgTxt=st.gas!=='fm'?'לבדוק במחירון טלפייר מיכל Novec מתאים':pk?`${nmT(pk.c)} · ${f(pk.fill,1)} ק״ג`:op.multi.length?op.multi.map(m=>`${m.n} × ${nmT(m.c)}`).join(' או '):'אין מיכל pre-engineered מתאים';
  $('res').innerHTML=`<div>כמות ${r.g.lab} נדרשת</div>
  <div class="big">${f(r.W,1)} <small>ק״ג</small></div>
  <div class="row"><span>נפח ברוטו</span><b>${f(r.gross)} מ״ק</b></div>
  <div class="row"><span>הפחתות</span><b>−${f(r.sub)} מ״ק</b></div>
  <div class="row"><span>נפח נטו מוגן</span><b>${f(r.net)} מ״ק</b></div>
  <div class="row"><span>ריכוז · טמפ׳</span><b>${f(r.C,1)}% · ${f(r.T,0)}°C</b></div>
- <div class="row"><span>מיכל מוצע</span><b style="white-space:normal;text-align:left"><span class="tag">${esc(sg.txt)}</span></b></div>
- ${ac!=null?`<div class="row"><span>ריכוז בפועל ב-${f(sg.fill,1)} ק״ג</span><b>${f(ac,2)}%</b></div>`:''}`;
+ <div class="row"><span>מיכל מוצע</span><b style="white-space:normal;text-align:left"><span class="tag">${esc(sgTxt)}</span></b></div>
+ ${ac!=null?`<div class="row"><span>ריכוז בפועל ב-${f(pk.fill,1)} ק״ג</span><b>${f(ac,2)}%</b></div>`:''}`;
+ renderOpts(r,op,pk);
  const w=[];
  const hm=+st.hmax;
- if(hm>0&&r.top>hm)w.push(`הגובה המרבי בחדר הוא ${f(r.top)} מ׳, יותר מ-${f(hm,1)} מ׳. בטפסי SAFE pre-engineered גובה הצנרת מוגבל ל-4 מ׳ מהרצפה. צריך לבדוק מול היצרן או לשקול מערכת engineered.`);
+ if(hm>0&&r.top>hm)w.push(`הגובה המרבי בחדר הוא ${f(r.top)} מ׳, יותר מ-${f(hm,1)} מ׳. בטפסי ההרצה של SAFE ושל Fike ‏(pre-engineered) גובה הצנרת מוגבל ל-4 מ׳ מהרצפה. צריך לבדוק מול היצרן או לשקול מערכת engineered.`);
  const hs=[...new Set(st.blocks.filter(b=>b.t==='v'&&(+b.z||0)>=0).map(b=>(+b.z||0)+(+b.h||0)))];
- if(hs.length>1)w.push(`יש בחדר ${hs.length} גובהי תקרה שונים. צריך לבדוק פיזור: ייתכן שנדרש נחיר לכל אזור, וחלוקת הגז בין הנחירים לפי הנפח.`);
+ if(hs.length>1)w.push(`יש בחדר ${hs.length} גובהי תקרה שונים. צריך לבדוק פיזור: ייתכן שנדרש נחיר לכל אזור (למשל מיכל עם שני נחירים), או מיכל נפרד לכל אזור.`);
+ if(pk&&pk.c.src==='price')w.push('למיכל שנבחר אין טופס הרצה בפרויקט (הנתונים מהמחירון בלבד). יש לבדוק נפח כיבוי ומגבלות צנרת מול היצרן.');
  if(ac!=null&&ac>r.g.noael)w.push(`הריכוז בפועל (${f(ac,2)}%) גבוה מסף NOAEL של ${r.g.lab} ‏(${r.g.noael}%). בחלל שיש בו אנשים צריך לבחור מילוי קטן יותר או מיכל אחר.`);
  if(r.sub>r.gross*0.15)w.push('ההפחתות הן יותר מ-15% מהנפח. כדאי לוודא שמורידים רק עצמים קבועים ואטומים.');
  $('warns').innerHTML=w.map(t=>`<div class="warn">${t}</div>`).join('');
  st.blocks.forEach((b,i)=>{const e=$('v'+i);if(e)e.textContent=(b.t==='s'?'−':'')+f(vol(b))});
  const L=st.blocks.map((b,i)=>`${i+1}. ${b.n} (${b.t==='s'?'הפחתה':'חלל'}): ${f(b.l)}×${f(b.w)}×${f(b.h)} = ${b.t==='s'?'−':''}${f(vol(b))} מ״ק`).join('\n');
- $('sum').textContent=`חישוב נפח וכמות גז – ${st.name}\nתאריך: ${new Date().toLocaleDateString('he-IL')}\n${L}\n\nנפח ברוטו: ${f(r.gross)} מ״ק\nהפחתות: ${f(r.sub)} מ״ק\nנפח נטו: ${f(r.net)} מ״ק\nגז: ${r.g.lab}, ריכוז ${f(r.C,1)}%, טמפ׳ ${f(r.T,0)}°C, ‏S=${r.S.toFixed(4)}\nכמות נדרשת: ${f(r.W,2)} ק״ג\nמיכל מוצע: ${sg.txt}${ac!=null?`\nריכוז בפועל ב-${f(sg.fill,1)} ק״ג: ${f(ac,2)}%`:''}\nגובה מרבי בחדר: ${f(r.top)} מ׳`;
+ $('sum').textContent=`חישוב נפח וכמות גז – ${st.name}\nתאריך: ${new Date().toLocaleDateString('he-IL')}\n${L}\n\nנפח ברוטו: ${f(r.gross)} מ״ק\nהפחתות: ${f(r.sub)} מ״ק\nנפח נטו: ${f(r.net)} מ״ק\nגז: ${r.g.lab}, ריכוז ${f(r.C,1)}%, טמפ׳ ${f(r.T,0)}°C, ‏S=${r.S.toFixed(4)}\nכמות נדרשת: ${f(r.W,2)} ק״ג\nמיכל: ${sgTxt}${pk&&pk.c.pn?` (${strip(pk.c.pn)})`:''}${ac!=null?`\nריכוז בפועל ב-${f(pk.fill,1)} ק״ג: ${f(ac,2)}%`:''}${pk?'\n'+pk.c.det.map(d=>'• '+strip(d)).join('\n'):''}\nגובה מרבי בחדר: ${f(r.top)} מ׳`;
  save();draw3d();
 }
-function syncSettings(){$('gas').value=st.gas;$('conc').value=st.conc;$('temp').value=st.temp;$('hmax').value=st.hmax}
+function syncSettings(){$('mk').value=st.mk||'all';$('gas').value=st.gas;$('conc').value=st.conc;$('temp').value=st.temp;$('hmax').value=st.hmax}
 
 $('tb').addEventListener('input',e=>{const t=e.target,i=+t.dataset.i,k=t.dataset.k;if(!k)return;
  st.blocks[i][k]=(k==='n'||k==='t')?t.value:(t.value===''?0:+t.value);
@@ -197,6 +258,8 @@ $('addV').onclick=()=>{const mx=Math.max(0,...st.blocks.map(b=>(+b.x||0)+(+b.l||
 $('addS').onclick=()=>{st.blocks.push({n:'עמוד',t:'s',l:0.4,w:0.4,h:3,x:0,y:0,z:0});renderTable();update()};
 $('reset').onclick=()=>{st.blocks=sample();renderTable();update()};
 $('gas').onchange=e=>{st.gas=e.target.value;st.conc=defs[st.gas].c;syncSettings();update()};
+$('mk').onchange=e=>{st.mk=e.target.value;update()};
+$('opts').addEventListener('change',e=>{if(e.target.name==='pick'){st.pick=e.target.value;update()}});
 ['conc','temp','hmax'].forEach(k=>$(k).addEventListener('input',e=>{st[k]=+e.target.value;update()}));
 function rooms(){$('roomSel').innerHTML=db.rooms.map(r=>`<option value="${r.id}"${r.id===st.id?' selected':''}>${esc(r.name)}</option>`).join('');$('roomName').value=st.name}
 function switchTo(r){st=r;syncSettings();renderTable();rooms();draw3d.fit=0;update()}
